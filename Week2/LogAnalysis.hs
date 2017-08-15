@@ -46,22 +46,13 @@ getError (errorCode:rest) =
 getTimeStamp :: MessageType -> [String] -> ValidMessageType
 getTimeStamp _ [] = InvalidMessageType
 getTimeStamp messageType (timestamp:rest) =
-  case validInt timestamp of
-    InvalidInt -> InvalidMessageType
-    (ValidInt i) -> ValidMessageType messageType i rest
-
-data ValidInt = ValidInt Int
-              | InvalidInt
-              deriving (Show, Eq)
-
-validInt :: String -> ValidInt
-validInt str =
-  case readMaybe str of
-    Nothing -> InvalidInt
-    (Just i) -> ValidInt i
+  case readMaybe timestamp of
+    Nothing -> InvalidMessageType
+    Just validInt -> ValidMessageType messageType validInt rest
 
 parse :: String -> [LogMessage]
 parse = parse' . lines
+
 
 parse' :: [String] -> [LogMessage]
 parse' [] = []
@@ -79,7 +70,7 @@ insert logMessage Leaf = Node Leaf logMessage Leaf
 insert (LogMessage _ _ _) tree@(Node _ (Unknown _) _) = tree
 insert logMessage@(LogMessage _ timestamp _) (Node left content@(LogMessage _ treeTimestamp _) right) =
     if timestamp < treeTimestamp
-        then Node (insert logMessage left) content right
+        then Node (insert logMessage left) content right 
         else Node left content (insert logMessage right)
 
 --which builds up a MessageTree containing the messages in the list, by 
@@ -88,5 +79,21 @@ build :: [LogMessage] -> MessageTree
 build [] = Leaf
 build (x:xs) = insert x (build xs)
 
---build [(parseMessage "E 2 147 1"), (parseMessage "E 2 148 2"), (parseMessage "E 2 146 3")]
+-- takes a sorted MessageTree and produces a list of all the LogMessage
+-- s it contains, sorted by timestamp from smallest to biggest.- (This is known as an
+-- in-order traversal of the MessageTree .)
+inOrder :: MessageTree -> [LogMessage]
+inOrder Leaf = []
+inOrder (Node left content right) = (inOrder left) ++ [content] ++ (inOrder right)
+
+--  takes an unsorted list of LogMessage s, and returns a list of the
+--  messages corresponding to any errors with a severity of 50 or greater,
+--  sorted by timestamp.
+whatWentWrong :: [LogMessage] -> [String]
+whatWentWrong [] = []
+whatWentWrong ((LogMessage (Error errorLevel) _ message):rest)
+  | errorLevel >= 50 = message : whatWentWrong rest
+  | otherwise = whatWentWrong rest
+whatWentWrong (_:rest) = whatWentWrong rest
+
 

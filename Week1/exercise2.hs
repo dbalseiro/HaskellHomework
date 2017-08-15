@@ -20,6 +20,3 @@ performMove n from to using =
     [(from, to)] ++
     (performMove (n-1) using to from)
 
-concatenateMoves :: [Move] -> [Move] -> [Move]
-concatenateMoves [] y = y
-concatenateMoves (x:xs) y = x : (concatenateMoves xs y)
